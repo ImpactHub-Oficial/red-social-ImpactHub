@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImpactHub | Red Social & Juegos</title>
+    <script src="https://www.paypal.com/sdk/js?client-id=AejKp5o7UajosynqB8WG3ISZ2ewDI9Qimgs9gY9xidOCl05pdS-JnGLyVy17SvH-Kcdif5CADOPpIh6Q&currency=USD"></script>
+    <style>
+        /* --- ESTILOS (CSS) --- */
+        :root { --primary: #6366f1; --dark: #0f172a; --light: #f8fafc; --accent: #22c55e; --wa: #25D366; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--dark); color: var(--light); margin: 0; padding-bottom: 50px; }
+        header { background: #1e293b; padding: 1rem; position: sticky; top: 0; border-bottom: 2px solid var(--primary); z-index: 100; }
+        nav { display: flex; justify-content: space-between; max-width: 800px; margin: 0 auto; align-items: center; }
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
+        
+        /* SECCIÓN VIRAL */
+        .viral-box { background: linear-gradient(45deg, #1e293b, #1e1b4b); border: 2px solid var(--primary) !important; text-align: center; }
+        .viral-box h4 { color: var(--primary); margin-bottom: 10px; font-size: 1.2rem; }
+        .viral-box p { font-size: 0.9rem; color: #cbd5e1; margin-bottom: 15px; }
+        
+        textarea { width: 100%; background: #0f172a; border: 1px solid #475569; color: white; padding: 10px; border-radius: 8px; resize: none; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+        .btn-wa { background: var(--wa); color: white; }
+
+        .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 200px; margin: 15px auto; }
+        .pad { width: 80px; height: 80px; background: #334155; border-radius: 8px; cursor: pointer; }
+        .pad.active { background: var(--primary); box-shadow: 0 0 20px var(--primary); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #334155; }
+        .btn-facebook { background: #1877f2; }
+        .store-card { border: 2px solid #ffc439 !important; text-align: center; }
+    </style>
+</head>
+<body>
+
+<header>
+    <nav>
+        <div class="logo" style="font-weight: bold; font-size: 1.2rem;">🚀 ImpactHub</div>
+        <div>💰 <strong id="coin-count">0</strong> Monedas</div>
+    </nav>
+</header>
+
+<main class="container">
+    <section class="card">
+        <textarea id="post-input" placeholder="¿Qué estás pensando? (Gana +5 monedas)"></textarea>
+        <button onclick="createPost()">Publicar en el Muro</button>
+    </section>
+
+    <section class="card viral-box">
+        <h4>🚀 ¿QUIERES HACERTE VIRAL?</h4>
+        <p>Publica tu emprendimiento, negocio o tus videos para llegar a miles de personas. ¡Haz que tu contenido sea masivo en ImpactHub!</p>
+        <button class="btn-wa" onclick="window.open('https://wa.me/519XXXXXXXX')">📢 PUBLICITAR MI NEGOCIO</button>
+    </section>
+
+    <section class="card store-card">
+        <h3>💎 Tienda ImpactHub</h3>
+        <p>Compra 1000 monedas por <strong>$1.00 USD</strong></p>
+        <div id="paypal-button-container"></div>
+    </section>
+
+    <section class="card" style="text-align: center;">
+        <h3>🧠 Reto de Memoria</h3>
+        <p>Costo: 10 | Premio: 25 monedas</p>
+        <div class="pad-grid">
+            <div class="pad" id="pad-0" onclick="checkSequence(0)"></div>
+            <div class="pad" id="pad-1" onclick="checkSequence(1)"></div>
+            <div class="pad" id="pad-2" onclick="checkSequence(2)"></div>
+            <div class="pad" id="pad-3" onclick="checkSequence(3)"></div>
+        </div>
+        <button onclick="startGame()">Jugar Ahora</button>
+        <p id="game-status">¡Supera la secuencia!</p>
+    </section>
+
+    <section class="card">
+        <h3>🏆 Top Líderes</h3>
+        <table>
+            <thead><tr><th>Pos</th><th>Usuario</th><th>Saldo</th></tr></thead>
+            <tbody id="leaderboard-body"></tbody>
+        </table>
+        <button class="btn-facebook" onclick="shareFB()">Compartir en Facebook</button>
+    </section>
+
+    <div id="feed"></div>
+</main>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAVWQuqHu7k1dN00azed-Z0fuHMBWEOya0",
+        authDomain: "impacthub-985c8.firebaseapp.com",
+        projectId: "impacthub-985c8",
+        storageBucket: "impacthub-985c8.firebasestorage.app",
+        messagingSenderId: "820436347348",
+        appId: "1:820436347348:web:9c8f77b40ec7a3faac0e41",
+        measurementId: "G-RQ9S7ZCTLC" 
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Sistema de persistencia simple para monedas
+    let localCoins = parseInt(localStorage.getItem('impact_coins')) || 100;
+    let sequence = [];
+    let userSeq = [];
+    let gameActive = false;
+
+    function updateUI() {
+        document.getElementById('coin-count').innerText = localCoins;
+        localStorage.setItem('impact_coins', localCoins);
+    }
+    updateUI();
+
+    window.createPost = async () => {
+        const text = document.getElementById('post-input').value;
+        if (!text) return;
+        await addDoc(collection(db, "posts"), { text, date: new Date() });
+        localCoins += 5;
+        updateUI();
+        document.getElementById('post-input').value = "";
+    };
+
+    onSnapshot(query(collection(db, "posts"), orderBy("date", "desc")), (snap) => {
+        const feed = document.getElementById('feed');
+        feed.innerHTML = "";
+        snap.forEach(doc => {
+            feed.innerHTML += `<div class="card"><p>${doc.data().text}</p></div>`;
+        });
+    });
+
+    // --- INTEGRACIÓN REAL DE PAYPAL ---
+    paypal.Buttons({
+        createOrder: function(data, actions) {
+            return actions.order.create({
+                purchase_units: [{ amount: { value: '1.00' } }]
+            });
+        },
+        onApprove: function(data, actions) {
+            return actions.order.capture().then(function(details) {
+                alert('¡Pago exitoso, ' + details.payer.name.given_name + '! Se han sumado 1000 monedas a tu cuenta.');
+                localCoins += 1000;
+                updateUI();
+            });
+        }
+    }).render('#paypal-button-container');
+
+    // --- LÓGICA DEL JUEGO ---
+    window.startGame = () => {
+        if (localCoins < 10) return alert("No tienes monedas suficientes");
+        localCoins -= 10; updateUI();
+        sequence = []; userSeq = []; gameActive = true;
+        nextStep();
+    };
+
+    function nextStep() {
+        sequence.push(Math.floor(Math.random() * 4));
+        playSeq();
+    }
+
+    function playSeq() {
+        let i = 0;
+        const interval = setInterval(() => {
+            const pad = document.getElementById(`pad-${sequence[i]}`);
+            if(pad) {
+                pad.classList.add('active');
+                setTimeout(() => pad.classList.remove('active'), 400);
+            }
+            i++;
+            if (i >= sequence.length) clearInterval(interval);
+        }, 800);
+    }
+
+    window.checkSequence = (n) => {
+        if (!gameActive) return;
+        userSeq.push(n);
+        if (userSeq[userSeq.length-1] !== sequence[userSeq.length-1]) {
+            document.getElementById('game-status').innerText = "Perdiste ❌";
+            gameActive = false;
+            return;
+        }
+        if (userSeq.length === sequence.length) {
+            if (sequence.length === 3) {
+                document.getElementById('game-status').innerText = "¡GANASTE! +25 💰";
+                localCoins += 25; updateUI();
+                gameActive = false;
+            } else {
+                userSeq = [];
+                setTimeout(nextStep, 1000);
+            }
+        }
+    };
+
+    window.shareFB = () => {
+        const url = window.location.href;
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    };
+</script>
+</body>
+</html>
